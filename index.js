@@ -59,8 +59,10 @@ app.post('/message', function(request, response) {
     }, function(error, response, body) {
       if (!error && response.statusCode == 200) {
         console.log('Transmission succeeded: ' + JSON.stringify(body));
+        response.sendStatus(200);
       } else {
         console.error('Transmission failed: ' + response.statusCode + ' ' + JSON.stringify(body));
+        response.status(500).send('Transmission failed: ' + JSON.stringify(body));
       }
     });
   } catch (e) {
