@@ -56,12 +56,12 @@ app.post('/message', function(request, response) {
           email_rfc822: email_rfc822
         }
       }
-    }, function(error, response, body) {
-      if (!error && response.statusCode == 200) {
+    }, function(error, res, body) {
+      if (!error && res.statusCode == 200) {
         console.log('Transmission succeeded: ' + JSON.stringify(body));
         response.status(200).send('OK')
       } else {
-        console.error('Transmission failed: ' + response.statusCode + ' ' + JSON.stringify(body));
+        console.error('Transmission failed: ' + res.statusCode + ' ' + JSON.stringify(body));
         response.status(500).send('Transmission failed: ' + JSON.stringify(body));
       }
     });
