@@ -1,0 +1,32 @@
+{
+  "name": "sp-forwarding-service",
+  "version": "0.1.0",
+  "description": "A small Heroku service that will consume inbound message webhook calls and forward them through the Transmissions API.",
+  "main": "index.js",
+  "bin": {
+    "spfs_setup": "cli.js"
+  },
+  "scripts": {
+    "lint": "eslint index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Duncan Rance",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:SparkPost/sp-forwarding-service.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SparkPost/sp-forwarding-service/issues"
+  },
+  "homepage": "https://github.com/SparkPost/sp-forwarding-service",
+  "dependencies": {
+    "body-parser": "^1.15.0",
+    "express": "^4.13.4",
+    "q": "^1.4.1",
+    "request": "^2.69.0"
+  },
+  "devDependencies": {
+    "eslint": "^2.2.0"
+  }
+}
