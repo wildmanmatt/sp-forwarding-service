@@ -16,14 +16,9 @@ forward them through the Transmissions API to a mailbox.
         cd sp-forwarding-service
         npm install
 
-3.  Configure the app:
-
-        echo SPARKPOST_API_KEY=<your-api-key-here> >> .env
-        echo INBOUND_DOMAIN=<your-inbound-domain-here> >> .env
-
 3.  Create the heroku app:
 
-        heroku create forwarding-service
+        heroku create
 
 4.  Configure the app:
 
