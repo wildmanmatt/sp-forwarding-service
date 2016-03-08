@@ -11,7 +11,10 @@ let q = require('q')
   })
   , postBaseRequest = getBaseRequest.defaults({
     headers: { 'Content-Type': 'application/json' }
-  });
+  })
+  , redis = require('redis').createClient(process.env.REDIS_URL)
+  , appUrl = process.env.APP_URL
+  , hasWebhook = false;
 
 if (process.env.SPARKPOST_API_KEY === null) {
   console.error('SPARKPOST_API_KEY must be set');
@@ -38,24 +41,28 @@ app.set('port', (process.env.PORT || 5000));
 app.use(bodyParser.json());
 
 app.get('/setup', function(request, response) {
-  // When deployed using the Heroku button neither of these config vars will be
+  // When deployed using the Heroku button the APP_URL config var will not be
   // set but this endpoint will be hit if the user clicks the "View" button
   // after deployment. Take this opportunity to set the APP_URL.
-  if (process.env.HEROKU_APP_NAME === null && process.env.APP_URL === null) {
-    process.env.APP_URL = 'https://' + request.hostname + '.herokuapp.com/message';
+  if (!appUrl) {
+    appUrl = 'https://' + request.hostname + '/message';
   }
 
-  getInboundWebhooks()
-    .then(function(webhooks) {
-      response.send('<p>Inbound Webhooks:</p><pre>' + JSON.stringify(webhooks) + '</pre>');
-    })
-    .fail(function(msg) {
-      response.send('<p>' + msg + '</p>');
-    });
+  if (!hasWebhook) {
+    getInboundWebhooks()
+      .then(function(webhooks) {
+        response.send('<p>Inbound Webhooks:</p><pre>' + JSON.stringify(webhooks) + '</pre>');
+        return addInboundWebhook(webhooks)
+      })
+      .fail(function(msg) {
+        response.status(500).send(msg);
+      });
+  }
 });
 
 app.post('/message', function(request, response) {
   try {
+console.log(JSON.stringify(request.body));
     let data = JSON.parse(JSON.stringify(request.body))
       // The From: address needs to be changed to use a verified domain
       // Note that jshint fails here due to a bug (https://github.com/jshint/jshint/pull/2881)
@@ -84,8 +91,8 @@ app.post('/message', function(request, response) {
       }
     });
   } catch (e) {
-    console.error('Failed to get email_rfc822 data', e);
-    response.status(500).send('Failed to get email message from data');
+    console.error('Invalid data', e);
+    response.status(400).send('Invalid data');
   }
 });
 
@@ -146,19 +153,13 @@ function getInboundWebhooks() {
 }
 
 function addInboundWebhook(webhook_list) {
+console.log('addInboundWebhook');
   return q.Promise(function(resolve, reject) {
     if (webhook_list.length > 0) {
       // TODO check for the actual webhook in question
       console.log('Inbound webhook exists');
       resolve();
-    } else {
-      if (process.env.HEROKU_APP_NAME) {
-        var appUrl = 'https://' + process.env.HEROKU_APP_NAME + '.herokuapp.com/message';
-      } else if (process.env.APP_URL) {
-        var appUrl = process.env.APP_URL;
-      } else {
-        reject('Neither HEROKU_APP_NAME or APP_URL are set');
-      }
+    } else if (appUrl) {
       postBaseRequest.post({
         url: 'relay-webhooks',
         json: {
@@ -173,11 +174,14 @@ function addInboundWebhook(webhook_list) {
       }, function(error, response, body) {
         if (!error && response.statusCode == 200) {
           console.log('Inbound webhook created');
+          hasWebhook = true;
           resolve();
         } else {
           reject(response.statusCode + ' ' + JSON.stringify(body));
         }
       });
+    } else {
+      reject('Wibble');
     }
   });
 }
@@ -188,7 +192,6 @@ getInboundDomains()
   .then(addInboundWebhook)
   .fail(function(msg) {
     console.error(msg);
-    process.exit(1);
   })
   .done(function() {
     app.listen(app.get('port'), function() {
