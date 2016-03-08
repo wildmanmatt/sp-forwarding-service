@@ -3,9 +3,6 @@
   "version": "0.1.0",
   "description": "A small Heroku service that will consume inbound message webhook calls and forward them through the Transmissions API.",
   "main": "index.js",
-  "bin": {
-    "spfs_setup": "cli.js"
-  },
   "scripts": {
     "lint": "eslint index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -27,6 +24,10 @@
     "request": "^2.69.0"
   },
   "devDependencies": {
-    "eslint": "^2.2.0"
+    "eslint": "^2.2.0",
+    "grunt": "^0.4.5",
+    "grunt-contrib-jshint": "^1.0.0",
+    "grunt-jscs": "^2.8.0",
+    "matchdep": "^1.0.1"
   }
 }
