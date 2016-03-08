@@ -37,8 +37,16 @@ app.set('port', (process.env.PORT || 5000));
 
 app.use(bodyParser.json());
 
-app.get('/', function(request, response) {
-  response.send('<p>Running...</p>');
+app.get('/setup', function(request, response) {
+  console.log(request.hostname);
+
+  getInboundWebhooks()
+    .then(function(webhooks) {
+      response.send('<p>Inbound Webhooks:</p><pre>' + JSON.stringify(webhooks) + '</pre>');
+    })
+    .fail(function(msg) {
+      response.send('<p>' + msg + '</p>');
+    });
 });
 
 app.post('/message', function(request, response) {
