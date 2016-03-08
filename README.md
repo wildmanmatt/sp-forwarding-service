@@ -3,6 +3,8 @@
 A small Heroku service that will consume inbound message webhook POSTs and
 forward them through the Transmissions API to a mailbox.
 
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/SparkPost/sp-forwarding-service)
+
 ## How to set up the service
 
 1.  Register for an account with [Heroku][1] and install the Heroku
