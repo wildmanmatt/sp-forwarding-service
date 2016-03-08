@@ -13,7 +13,7 @@
       "description": "Your SparkPost API Key."
     },
     "INBOUND_DOMAIN": {
-      "description": "The domain to which messages are sent to be forwarded. This should be a domain that you own and have set up in DNS so that its MX records point to rx1.sparkpostmail.com, rx2.sparkpostmail.com, and rx3.sparkpostmail.com."
+      "description": "The domain to which messages are sent for forwarding. This should be a domain that you own and have set up in DNS so that its MX records point to rx1.sparkpostmail.com, rx2.sparkpostmail.com, and rx3.sparkpostmail.com."
     },
     "FORWARD_FROM": {
       "description": "The email address from which forwarded messages are sent.",
