@@ -38,7 +38,12 @@ app.set('port', (process.env.PORT || 5000));
 app.use(bodyParser.json());
 
 app.get('/setup', function(request, response) {
-  console.log(request.hostname);
+  // When deployed using the Heroku button neither of these config vars will be
+  // set but this endpoint will be hit if the user clicks the "View" button
+  // after deployment. Take this opportunity to set the APP_URL.
+  if (process.env.HEROKU_APP_NAME === null && process.env.APP_URL === null) {
+    process.env.APP_URL = 'https://' + request.hostname + '.herokuapp.com/message';
+  }
 
   getInboundWebhooks()
     .then(function(webhooks) {
@@ -143,6 +148,7 @@ function getInboundWebhooks() {
 function addInboundWebhook(webhook_list) {
   return q.Promise(function(resolve, reject) {
     if (webhook_list.length > 0) {
+      // TODO check for the actual webhook in question
       console.log('Inbound webhook exists');
       resolve();
     } else {
@@ -158,7 +164,7 @@ function addInboundWebhook(webhook_list) {
         json: {
           name: 'Forwarding Service',
           target: appUrl,
-          auth_token: '1234567890qwertyuio',
+          auth_token: '1234567890qwertyuio', // TODO do this properly
           match: {
             protocol: 'SMTP',
             domain: process.env.INBOUND_DOMAIN
