@@ -13,22 +13,22 @@ let q = require('q')
     headers: { 'Content-Type': 'application/json' }
   });
 
-if (process.env.SPARKPOST_API_KEY == null) {
+if (process.env.SPARKPOST_API_KEY === null) {
   console.error('SPARKPOST_API_KEY must be set');
   process.exit(1);
 }
 
-if (process.env.INBOUND_DOMAIN == null) {
+if (process.env.INBOUND_DOMAIN === null) {
   console.error('INBOUND_DOMAIN must be set');
   process.exit(1);
 }
 
-if (process.env.FORWARD_FROM == null) {
+if (process.env.FORWARD_FROM === null) {
   console.error('FORWARD_FROM must be set');
   process.exit(1);
 }
 
-if (process.env.FORWARD_TO == null) {
+if (process.env.FORWARD_TO === null) {
   console.error('FORWARD_TO must be set');
   process.exit(1);
 }
@@ -41,7 +41,8 @@ app.post('/message', function(request, response) {
   try {
     let data = JSON.parse(JSON.stringify(request.body))
       // The From: address needs to be changed to use a verified domain
-      , email_rfc822 = data[0].msys.relay_message.content.email_rfc822
+      // Note that jshint fails here due to a bug (https://github.com/jshint/jshint/pull/2881)
+      , message = data[0].msys.relay_message.content.email_rfc822
         .replace(/^From: .*$/m, 'From: ' + process.env.FORWARD_FROM);
 
     postBaseRequest.post({
@@ -53,14 +54,16 @@ app.post('/message', function(request, response) {
           }
         }],
         content: {
-          email_rfc822: email_rfc822
+          email_rfc822: message
         }
       }
-    }, function(error, response, body) {
-      if (!error && response.statusCode == 200) {
+    }, function(error, res, body) {
+      if (!error && res.statusCode == 200) {
         console.log('Transmission succeeded: ' + JSON.stringify(body));
+        response.status(200).send('OK');
       } else {
-        console.error('Transmission failed: ' + response.statusCode + ' ' + JSON.stringify(body));
+        console.error('Transmission failed: ' + res.statusCode + ' ' + JSON.stringify(body));
+        response.status(500).send('Transmission failed: ' + JSON.stringify(body));
       }
     });
   } catch (e) {
