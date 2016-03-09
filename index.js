@@ -103,7 +103,7 @@ function getConfig() {
         reject(err);
       } else {
         if (!reply) {
-          console.log('App URL not configured');
+          console.log('App URL not configured in Redis');
         } else {
           appUrl = reply;
           console.log('App URL is set to ' + appUrl);
