@@ -54,18 +54,9 @@ app.get('/setup', function(request, response) {
     if (err) {
       response.status(500).send('Redis error: ' + err);
     } else {
-      response.status(200).send('App URL set to ' + appUrl);
-
-      /*
-      getInboundWebhooks()
-        .then(function(webhooks) {
-          response.send(JSON.stringify(webhooks));
-          //return addInboundWebhook(webhooks)
-        })
-        .fail(function(msg) {
-          response.status(500).send(msg);
-        });
-        */
+      let msg = 'App URL set to ' + appUrl;
+      console.log(msg)
+      response.status(200).send('<p>' + msg + '</p>');
     }
   });
 });
