@@ -23,5 +23,8 @@
     "FORWARD_TO": {
       "description": "The email address to which forwarded messages are sent."
     }
-  }
+  },
+  "addons": [
+    "heroku-redis"
+  ]
 }
