@@ -12,7 +12,7 @@ let q = require('q')
   , postBaseRequest = getBaseRequest.defaults({
     headers: { 'Content-Type': 'application/json' }
   })
-  , redis = require('redis').createClient(process.env.REDIS_URL)
+  , client = require('redis').createClient(process.env.REDIS_URL)
   , appUrl = process.env.APP_URL
   , hasWebhook = false;
 
@@ -36,6 +36,10 @@ if (process.env.FORWARD_TO === null) {
   process.exit(1);
 }
 
+client.on('error', function (err) {
+  console.error('Redis error: ' + err);
+});
+
 app.set('port', (process.env.PORT || 5000));
 
 app.use(bodyParser.json());
@@ -43,26 +47,31 @@ app.use(bodyParser.json());
 app.get('/setup', function(request, response) {
   // When deployed using the Heroku button the APP_URL config var will not be
   // set but this endpoint will be hit if the user clicks the "View" button
-  // after deployment. Take this opportunity to set the APP_URL.
-  if (!appUrl) {
-    appUrl = 'https://' + request.hostname + '/message';
-  }
+  // after deployment. Take this opportunity to set appUrl.
+  appUrl = 'https://' + request.hostname + '/message';
 
-  if (!hasWebhook) {
-    getInboundWebhooks()
-      .then(function(webhooks) {
-        response.send('<p>Inbound Webhooks:</p><pre>' + JSON.stringify(webhooks) + '</pre>');
-        return addInboundWebhook(webhooks)
-      })
-      .fail(function(msg) {
-        response.status(500).send(msg);
-      });
-  }
+  client.set('appUrl', appUrl, function(err, reply) {
+    if (err) {
+      response.status(500).send('Redis error: ' + err);
+    } else {
+      response.status(200).send('App URL set to ' + appUrl);
+
+      /*
+      getInboundWebhooks()
+        .then(function(webhooks) {
+          response.send(JSON.stringify(webhooks));
+          //return addInboundWebhook(webhooks)
+        })
+        .fail(function(msg) {
+          response.status(500).send(msg);
+        });
+        */
+    }
+  });
 });
 
 app.post('/message', function(request, response) {
   try {
-console.log(JSON.stringify(request.body));
     let data = JSON.parse(JSON.stringify(request.body))
       // The From: address needs to be changed to use a verified domain
       // Note that jshint fails here due to a bug (https://github.com/jshint/jshint/pull/2881)
@@ -95,6 +104,24 @@ console.log(JSON.stringify(request.body));
     response.status(400).send('Invalid data');
   }
 });
+
+function getConfig() {
+  return q.Promise(function(resolve, reject) {
+    client.get('appUrl', function (err, reply) {
+      if (err) {
+        reject(err);
+      } else {
+        if (!reply) {
+          console.log('App URL not configured');
+        } else {
+          appUrl = reply;
+          console.log('App URL is set to ' + appUrl);
+        }
+        resolve();
+      }
+    });
+  });
+}
 
 function getInboundDomains() {
   return q.Promise(function(resolve, reject) {
@@ -181,12 +208,13 @@ console.log('addInboundWebhook');
         }
       });
     } else {
-      reject('Wibble');
+      reject('Relay webhook has not been set up. GET the /setup endpoint.');
     }
   });
 }
 
-getInboundDomains()
+getConfig()
+  .then(getInboundDomains)
   .then(addInboundDomain)
   .then(getInboundWebhooks)
   .then(addInboundWebhook)
