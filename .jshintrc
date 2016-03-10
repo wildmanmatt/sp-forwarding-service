@@ -22,7 +22,7 @@
   "es3"                : false,
   "strict"             : true,
   "globalstrict"       : false,
-  "camelcase"          : true,
+  "camelcase"          : false,
   "curly"              : true,
   "eqeqeq"             : true,
   "immed"              : true,
