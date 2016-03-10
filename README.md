@@ -3,12 +3,20 @@
 A small Heroku service that will consume inbound message webhook POSTs and
 forward them through the Transmissions API to a mailbox.
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/SparkPost/sp-forwarding-service)
+## Deployment
 
-## How to set up the service
+This service can be deployed to Heroku by simply clicking on the following button:
 
-1.  Register for an account with [Heroku][1] and install the Heroku
-    [Toolbelt][2] for your operating system. Then log in:
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)][1]
+
+NOTE: To complete setup click on the "View" button under "Your app was
+successfully deployed" once the process is complete. Alternatively browse to
+`https://<your-app-name>.herokuapp.com/setup`.
+
+## Deploying Manually
+
+1.  Register for an account with [Heroku][2] and install the Heroku
+    [Toolbelt][3] for your operating system. Then log in:
 
         heroku login
 
@@ -37,6 +45,12 @@ forward them through the Transmissions API to a mailbox.
 
         git push heroku master
 
+6.  Complete the setup by doing an HTTP GET on the `/setup` endpoint, either
+    with a browser or curl:
 
-[1]: https://signup.heroku.com
-[2]: https://toolbelt.heroku.com
+        curl https://<your-app-name>.herokuapp.com/setup
+
+
+[1]: https://heroku.com/deploy?template=https://github.com/SparkPost/sp-forwarding-service
+[2]: https://signup.heroku.com
+[3]: https://toolbelt.heroku.com
