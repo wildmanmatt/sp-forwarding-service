@@ -36,7 +36,7 @@ if (process.env.FORWARD_TO === null) {
   process.exit(1);
 }
 
-client.on('error', function (err) {
+client.on('error', function(err) {
   console.error('Redis error: ' + err);
 });
 
@@ -50,12 +50,12 @@ app.get('/setup', function(request, response) {
   // after deployment. Take this opportunity to set appUrl.
   appUrl = 'https://' + request.hostname + '/message';
 
-  client.set('appUrl', appUrl, function(err, reply) {
+  client.set('appUrl', appUrl, function(err) {
     if (err) {
       response.status(500).send('Redis error: ' + err);
     } else {
       let msg = 'App URL set to ' + appUrl;
-      console.log(msg)
+      console.log(msg);
       response.status(200).send('<p>' + msg + '</p>');
     }
   });
@@ -82,7 +82,7 @@ app.post('/message', function(request, response) {
         }
       }
     }, function(error, res, body) {
-      if (!error && res.statusCode == 200) {
+      if (!error && res.statusCode === 200) {
         console.log('Transmission succeeded: ' + JSON.stringify(body));
         response.status(200).send('OK');
       } else {
@@ -98,7 +98,7 @@ app.post('/message', function(request, response) {
 
 function getConfig() {
   return q.Promise(function(resolve, reject) {
-    client.get('appUrl', function (err, reply) {
+    client.get('appUrl', function(err, reply) {
       if (err) {
         reject(err);
       } else {
@@ -117,7 +117,7 @@ function getConfig() {
 function getInboundDomains() {
   return q.Promise(function(resolve, reject) {
     getBaseRequest('inbound-domains', function(error, response, body) {
-      if (!error && response.statusCode == 200) {
+      if (!error && response.statusCode === 200) {
         let domains = Array()
           , data = JSON.parse(body);
         for (var key in data.results) {
@@ -147,7 +147,7 @@ function addInboundDomain(domain_list) {
           domain: process.env.INBOUND_DOMAIN
         }
       }, function(error, response, body) {
-        if (!error && response.statusCode == 200) {
+        if (!error && response.statusCode === 200) {
           console.log('Inbound domain ' + process.env.INBOUND_DOMAIN + ' created');
           resolve();
         } else {
@@ -161,7 +161,7 @@ function addInboundDomain(domain_list) {
 function getInboundWebhooks() {
   return q.Promise(function(resolve, reject) {
     getBaseRequest('relay-webhooks', function(error, response, body) {
-      if (!error && response.statusCode == 200) {
+      if (!error && response.statusCode === 200) {
         resolve(JSON.parse(body).results);
       } else {
         reject(response.statusCode + ' ' + body);
@@ -171,7 +171,7 @@ function getInboundWebhooks() {
 }
 
 function addInboundWebhook(webhook_list) {
-console.log('addInboundWebhook');
+  console.log('addInboundWebhook');
   return q.Promise(function(resolve, reject) {
     if (webhook_list.length > 0) {
       // TODO check for the actual webhook in question
@@ -190,7 +190,7 @@ console.log('addInboundWebhook');
           }
         }
       }, function(error, response, body) {
-        if (!error && response.statusCode == 200) {
+        if (!error && response.statusCode === 200) {
           console.log('Inbound webhook created');
           hasWebhook = true;
           resolve();
