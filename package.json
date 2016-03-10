@@ -24,7 +24,8 @@
     "express": "^4.13.4",
     "q": "^1.4.1",
     "redis": "^2.5.0-1",
-    "request": "^2.69.0"
+    "request": "^2.69.0",
+    "sparkpost": "^1.1.0"
   },
   "devDependencies": {
     "jscs": "latest",

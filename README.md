@@ -5,18 +5,24 @@ forward them through the Transmissions API to a mailbox.
 
 ## Deployment
 
-This service can be deployed to Heroku by simply clicking on the following button:
+Start by clicking on the following button:
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)][1]
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)][deploy]
 
-NOTE: To complete setup click on the "View" button under "Your app was
-successfully deployed" once the process is complete. Alternatively browse to
-`https://<your-app-name>.herokuapp.com/setup`.
+Once the deployment completes click on the "View" button under "Your app was
+successfully deployed". (Alternatively browse to
+`https://<your-app-name>.herokuapp.com/setup`.)
+
+If a `FORWARD_FROM` address was chosen other than the default
+`forward@sparkpostbox.com` then a sending domain will need to be
+[created][createsd] and verified. To get to the SparkPost UI browse to the
+"Resources" tab of the newly created app in the [Heroku Dashboard][apps], and
+then click "SparkPost".
 
 ## Deploying Manually
 
-1.  Register for an account with [Heroku][2] and install the Heroku
-    [Toolbelt][3] for your operating system. Then log in:
+1.  Register for an account with [Heroku][signup] and install the Heroku
+    [Toolbelt][toolbelt] for your operating system. Then log in:
 
         heroku login
 
@@ -41,16 +47,22 @@ successfully deployed" once the process is complete. Alternatively browse to
         DNS so that its MX records point to rx1.sparkpostmail.com,
         rx2.sparkpostmail.com, and rx3.sparkpostmail.com.
 
-5.  Deploy the app:
+5.  Configure the required add-ons:
+
+        heroku addons:create heroku-redis:hobby-dev
+
+6.  Deploy the app:
 
         git push heroku master
 
-6.  Complete the setup by doing an HTTP GET on the `/setup` endpoint, either
+7.  Complete the setup by doing an HTTP GET on the `/setup` endpoint, either
     with a browser or curl:
 
         curl https://<your-app-name>.herokuapp.com/setup
 
 
-[1]: https://heroku.com/deploy?template=https://github.com/SparkPost/sp-forwarding-service
-[2]: https://signup.heroku.com
-[3]: https://toolbelt.heroku.com
+[deploy]: https://heroku.com/deploy?template=https://github.com/SparkPost/sp-forwarding-service
+[createsd]: https://support.sparkpost.com/customer/portal/articles/1933318
+[apps]: https://dashboard.heroku.com/apps
+[signup]: https://signup.heroku.com
+[toolbelt]: https://toolbelt.heroku.com

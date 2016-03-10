@@ -10,21 +10,19 @@
   "logo": "https://developers.sparkpost.com/images/logo-sparkpost.png",
   "success_url": "/setup",
   "env": {
-    "SPARKPOST_API_KEY": {
-      "description": "Your SparkPost API Key."
-    },
     "INBOUND_DOMAIN": {
       "description": "The domain to which messages are sent for forwarding. This should be a domain that you own and have set up in DNS so that its MX records point to rx1.sparkpostmail.com, rx2.sparkpostmail.com, and rx3.sparkpostmail.com."
     },
     "FORWARD_FROM": {
       "description": "The email address from which forwarded messages are sent.",
-      "value": "SparkPost Forwarding Service <forward@sparkpostbox.com>"
+      "value": "forward@sparkpostbox.com"
     },
     "FORWARD_TO": {
       "description": "The email address to which forwarded messages are sent."
     }
   },
   "addons": [
-    "heroku-redis"
+    "heroku-redis",
+    "sparkpost"
   ]
 }
