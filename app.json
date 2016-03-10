@@ -1,6 +1,6 @@
 {
   "name": "SparkPost Forwarding Service",
-  "description": "A small Heroku service that will consume inbound message webhook POSTs and forward them through the Transmissions API to a mailbox. NOTE: Click on the \"View\" button under \"Your app was successfully deployed\" to complete setup.",
+  "description": "A small Heroku service that will consume inbound message webhook POSTs and forward them through the Transmissions API to a mailbox.",
   "keywords": [
     "sparkpost",
     "email"
