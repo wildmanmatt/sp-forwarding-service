@@ -36,9 +36,20 @@ then click "SparkPost".
 
         heroku create
 
-4.  Configure the app:
+4.  Configure the required add-ons:
+
+        heroku addons:create heroku-redis:hobby-dev
+        heroku addons:create sparkpost:free
+
+    Note: The SparkPost add-on will automatically create a SparkPost account and
+    set up the appropriate key. If you already have an account and wish to use
+    that do not run the `addons:create sparkpost:free` command. Then set the
+    following config var:
 
         heroku config:set SPARKPOST_API_KEY=<your-api-key-here>
+
+5.  Configure the app:
+
         heroku config:set INBOUND_DOMAIN=<your-inbound-domain-here>
         heroku config:set FORWARD_FROM=<the-from-address-to-use>
         heroku config:set FORWARD_TO=<the-recipient-of--forward-messages>
@@ -46,10 +57,6 @@ then click "SparkPost".
         The INBOUND_DOMAIN should be a domain that you own and have set up in
         DNS so that its MX records point to rx1.sparkpostmail.com,
         rx2.sparkpostmail.com, and rx3.sparkpostmail.com.
-
-5.  Configure the required add-ons:
-
-        heroku addons:create heroku-redis:hobby-dev
 
 6.  Deploy the app:
 
