@@ -1,0 +1,27 @@
+{
+  "name": "sp-forwarding-service",
+  "description": "A small Heroku service that will consume inbound message webhook calls and forward them through the Transmissions API.",
+  "main": "index.js",
+  "authors": [
+    "SparkPost"
+  ],
+  "license": "Apache-2.0",
+  "keywords": [
+    "sparkpost",
+    "email"
+  ],
+  "homepage": "https://github.com/SparkPost/sp-forwarding-service",
+  "moduleType": [],
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "^2.2.1",
+    "bootstrap": "^3.3.6"
+  }
+}

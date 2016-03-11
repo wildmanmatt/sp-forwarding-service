@@ -21,6 +21,7 @@
   "homepage": "https://github.com/SparkPost/sp-forwarding-service",
   "dependencies": {
     "body-parser": "^1.15.0",
+    "bower": "^1.7.7",
     "express": "^4.13.4",
     "q": "^1.4.1",
     "redis": "^2.5.0-1",

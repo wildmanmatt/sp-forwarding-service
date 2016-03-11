@@ -6,15 +6,20 @@ let q = require('q')
   , bodyParser = require('body-parser')
   , request = require('request')
   , getBaseRequest = request.defaults({
-    baseUrl: process.env.API_URL || 'https://api.sparkpost.com/api/v1/',
+    baseUrl: process.env.SPARKPOST_API_URL,
     headers: { 'Authorization': process.env.SPARKPOST_API_KEY }
   })
   , postBaseRequest = getBaseRequest.defaults({
     headers: { 'Content-Type': 'application/json' }
   })
   , client = require('redis').createClient(process.env.REDIS_URL)
-  , appUrl = process.env.APP_URL
+  , appUrl
   , hasWebhook = false;
+
+if (process.env.SPARKPOST_API_URL === null) {
+  console.error('SPARKPOST_API_URL must be set');
+  process.exit(1);
+}
 
 if (process.env.SPARKPOST_API_KEY === null) {
   console.error('SPARKPOST_API_KEY must be set');
@@ -42,23 +47,54 @@ client.on('error', function(err) {
 
 app.set('port', (process.env.PORT || 5000));
 
+app.use(express.static(__dirname + '/public'));
+
 app.use(bodyParser.json());
 
 app.get('/setup', function(request, response) {
-  // When deployed using the Heroku button the APP_URL config var will not be
-  // set but this endpoint will be hit if the user clicks the "View" button
-  // after deployment. Take this opportunity to set appUrl.
+
+  // Use the requesting hostname to build the URL that will later be used to add
+  // the relay webhook
   appUrl = 'https://' + request.hostname + '/message';
 
   client.set('appUrl', appUrl, function(err) {
     if (err) {
       response.status(500).send('Redis error: ' + err);
     } else {
-      let msg = 'App URL set to ' + appUrl;
-      console.log(msg);
-      response.status(200).send('<p>' + msg + '</p>');
+      response.status(200).send('<p>App URL set to ' + appUrl + '</p>');
     }
   });
+});
+
+// Responds with a JSON object containing the configured inbound domain, and a
+// flag indicating whether it has been set up in SparkPost.
+app.get('/inbound-domain', function(request, response) {
+  getInboundDomains()
+    .fail(function(msg) {
+      return response.status(500).send(msg);
+    })
+    .done(function(domains) {
+      return response.status(200).json({
+        domain: process.env.INBOUND_DOMAIN,
+        in_sparkpost: (domains.indexOf(process.env.INBOUND_DOMAIN) >= 0)
+      });
+    });
+});
+
+app.post('/inbound-domain', function(request, response) {
+  try {
+    let data = JSON.parse(JSON.stringify(request.body));
+
+////////////////////////////////////////////////////////////////////////////////
+    console.log('id', data); // Why is this empty?
+////////////////////////////////////////////////////////////////////////////////
+
+    // addInboundDomain(data);
+    response.status(200).send('OK');
+  } catch (e) {
+    console.error('Invalid data', e);
+    response.status(400).send('Invalid data');
+  }
 });
 
 app.post('/message', function(request, response) {
@@ -126,7 +162,7 @@ function getInboundDomains() {
         resolve(domains);
       } else {
         if (!response) {
-          reject('Error: ' + error);
+          reject(error);
         } else {
           reject(response.statusCode + ' ' + body);
         }
@@ -135,26 +171,21 @@ function getInboundDomains() {
   });
 }
 
-function addInboundDomain(domain_list) {
+function addInboundDomain(domain) {
   return q.Promise(function(resolve, reject) {
-    if (domain_list.indexOf(process.env.INBOUND_DOMAIN) >= 0) {
-      console.log('Inbound domain ' + process.env.INBOUND_DOMAIN + ' exists');
-      resolve();
-    } else {
-      postBaseRequest.post({
-        url: 'inbound-domains',
-        json: {
-          domain: process.env.INBOUND_DOMAIN
-        }
-      }, function(error, response, body) {
-        if (!error && response.statusCode === 200) {
-          console.log('Inbound domain ' + process.env.INBOUND_DOMAIN + ' created');
-          resolve();
-        } else {
-          reject(response.statusCode + ' ' + JSON.stringify(body));
-        }
-      });
-    }
+    postBaseRequest.post({
+      url: 'inbound-domains',
+      json: {
+        domain: domain
+      }
+    }, function(error, response, body) {
+      if (!error && response.statusCode === 200) {
+        console.log('Inbound domain ' + domain + ' created');
+        resolve();
+      } else {
+        reject(response.statusCode + ' ' + JSON.stringify(body));
+      }
+    });
   });
 }
 
@@ -171,7 +202,6 @@ function getInboundWebhooks() {
 }
 
 function addInboundWebhook(webhook_list) {
-  console.log('addInboundWebhook');
   return q.Promise(function(resolve, reject) {
     if (webhook_list.length > 0) {
       // TODO check for the actual webhook in question
@@ -204,16 +234,6 @@ function addInboundWebhook(webhook_list) {
   });
 }
 
-getConfig()
-  .then(getInboundDomains)
-  .then(addInboundDomain)
-  .then(getInboundWebhooks)
-  .then(addInboundWebhook)
-  .fail(function(msg) {
-    console.error(msg);
-  })
-  .done(function() {
-    app.listen(app.get('port'), function() {
-      console.log('Node app is running on port', app.get('port'));
-    });
-  });
+app.listen(app.get('port'), function() {
+  console.log('Node app is running on port', app.get('port'));
+});
