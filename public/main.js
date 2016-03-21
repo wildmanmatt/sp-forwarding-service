@@ -5,51 +5,65 @@ function errMsg(msg) {
     + '<strong>Oh snap!</strong> ' + msg + '</div>';
 }
 
-function addDomain(domain) {
-  $.post('/inbound-domain', { domain: domain }, function(data, textStatus, jqXHR) {
-    console.log('Yay!');
-  });
-
-  /*
-  $.ajax({
-    type: 'POST',
-    dataType: 'json',
-    data: {
-      domain: domain
-    },
-    url: '/inbound-domain',
-    success: function(data, textStatus, jqXHR){
-      console.log('Yay!');
-    },
-    error: function(jqXHR, textStatus, errorThrown) {
-      console.log('Boo!');
-      $('#add_inbound_domain').replaceWith(errMsg(jqXHR.responseText));
-    }
-  });
-  */
+function getDomain() {
+  $('#get_inbound_webhook').text('not configured');
+  $('#set_domain').show();
 }
 
 $.ajax({
   type: 'GET',
+  url: '/inbound-webhook',
   dataType: 'json',
-  url: '/inbound-domain',
-  success: function(data, textStatus, jqXHR) {
-    let rownum = 1;
-    let domain = '<span style="font-family:monospace;">' + data.domain + '</span>';
-
-    if (data.in_sparkpost) {
-      $('#get_inbound_domain').replaceWith('<p>' + domain + ' configured</p>');
-    } else {
-      $('#get_inbound_domain').replaceWith('<p>' + domain + ' not yet configured in SparkPost</p>');
-
-      $('#rowcont').append(
-        '<div id="row2" class="row"><div class="col-md-6"><p>Adding Inbound Domain...</p>'
-        + '</div><div class="col-md-6"><p id="add_inbound_domain"></p></div></div>'
-      );
-      addDomain(data.domain);
-    }
+  success: function(data) {
+    $('#get_inbound_webhook').html(
+      '<span style="font-family:monospace;">' + data + '</span>');
   },
-  error: function(jqXHR, textStatus, errorThrown) {
-    $('#get_inbound_domain').replaceWith(errMsg(jqXHR.responseText));
+  error: function(jqXHR) {
+    if (jqXHR.status === 404) {
+      getDomain();
+    }
+    else {
+      $('#rowcont').prepend(errMsg(jqXHR.responseText));
+    }
   }
+});
+
+function addWebhook(domain) {
+  $('#add_webhook').show();
+  $.ajax({
+    type: 'POST',
+    url: '/inbound-webhook',
+    dataType: 'json',
+    contentType: 'application/json',
+    data: JSON.stringify({ domain: domain }),
+    success: function(data){
+      $('#add_inbound_webhook').html(
+        '<span style="font-family:monospace;">' + data.app_url + '</span>');
+    },
+    error: function(jqXHR) {
+      $('#rowcont').prepend(errMsg(jqXHR.responseText));
+    }
+  });
+}
+
+$(document).ready('#domain_form').submit(function(event) {
+  event.preventDefault();
+  let domain = $('input').val();
+  $('.alert').remove();
+
+  $.ajax({
+    type: 'POST',
+    url: '/inbound-domain',
+    dataType: 'json',
+    contentType: 'application/json',
+    data: JSON.stringify({ domain: domain }),
+    success: function(data){
+      $('#domain_form').replaceWith(
+        '<p>domain <span style="font-family:monospace;">' + data.domain + '</span> added</p>');
+      addWebhook(domain);
+    },
+    error: function(jqXHR, a, b) {
+      $('#rowcont').prepend(errMsg(jqXHR.responseText));
+    }
+  });
 });

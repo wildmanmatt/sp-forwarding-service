@@ -21,13 +21,32 @@
     <div class="jumbotron">
       <div id="rowcont" class="container">
         <h2>SparkPost Forwarding Service Configuration</h2>
-        <div id="row1" class="row">
+        <div id="check_webhook" class="row">
           <div class="col-md-6">
-            <p>Getting Inbound Domain...</p>
-          </div> 
+            <p>Checking for inbound webhook...</p>
+          </div>
           <div class="col-md-6">
-            <p id="get_inbound_domain"></p>
-          </div> 
+            <p id="get_inbound_webhook"></p>
+          </div>
+        </div>
+        <div id="set_domain" class="row" style="display:none">
+          <div class="col-md-6">
+            <p>Choose your inbound domain</p>
+          </div>
+          <div class="col-md-6">
+            <form id="domain_form" enctype="application/json" action="/inbound-domainx" method="post">
+              <input name="domain" value="">
+              <button>Add domain</button>
+            </form>
+          </div>
+        </div>
+        <div id="add_webhook" class="row" style="display:none">
+          <div class="col-md-6">
+            <p>Adding inbound webhook...</p>
+          </div>
+          <div class="col-md-6">
+            <p id="add_inbound_webhook"></p>
+          </div>
         </div>
       </div>
     </div>

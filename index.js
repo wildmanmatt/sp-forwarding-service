@@ -11,10 +11,7 @@ let q = require('q')
   })
   , postBaseRequest = getBaseRequest.defaults({
     headers: { 'Content-Type': 'application/json' }
-  })
-  , client = require('redis').createClient(process.env.REDIS_URL)
-  , appUrl
-  , hasWebhook = false;
+  });
 
 if (process.env.SPARKPOST_API_URL === null) {
   console.error('SPARKPOST_API_URL must be set');
@@ -23,11 +20,6 @@ if (process.env.SPARKPOST_API_URL === null) {
 
 if (process.env.SPARKPOST_API_KEY === null) {
   console.error('SPARKPOST_API_KEY must be set');
-  process.exit(1);
-}
-
-if (process.env.INBOUND_DOMAIN === null) {
-  console.error('INBOUND_DOMAIN must be set');
   process.exit(1);
 }
 
@@ -41,60 +33,80 @@ if (process.env.FORWARD_TO === null) {
   process.exit(1);
 }
 
-client.on('error', function(err) {
-  console.error('Redis error: ' + err);
-});
-
 app.set('port', (process.env.PORT || 5000));
 
 app.use(express.static(__dirname + '/public'));
 
 app.use(bodyParser.json());
 
-app.get('/setup', function(request, response) {
+app.get('/inbound-webhook', function(request, response) {
+  let appUrl = 'https://' + request.hostname + '/message';
+  getInboundWebhooks()
+    .then(function(webhooks) {
+      console.log('got w', webhooks, webhooks.length);
+      let webhookExists = false;
+      for (var i in webhooks) {
+        console.log(webhooks[i]);
+      }
+      if (!webhookExists) {
+        return response.sendStatus(404);
+      }
+      return response.status(200).json({app_url: appUrl, webhooks: webhooks});
+    })
+    .fail(function(msg) {
+      return response.status(500).json({error: msg});
+    });
+});
 
-  // Use the requesting hostname to build the URL that will later be used to add
-  // the relay webhook
-  appUrl = 'https://' + request.hostname + '/message';
+app.post('/inbound-webhook', function(request, response) {
+  try {
+    let data = JSON.parse(JSON.stringify(request.body));
+    var domain = data.domain;
+  } catch (e) {
+    return response.status(400).json({err: 'Invalid data'});
+  }
 
-  client.set('appUrl', appUrl, function(err) {
-    if (err) {
-      response.status(500).send('Redis error: ' + err);
-    } else {
-      response.status(200).send('<p>App URL set to ' + appUrl + '</p>');
-    }
-  });
+  let appUrl = 'https://' + request.hostname + '/message';
+  addInboundWebhook(appUrl, domain)
+    .then(function() {
+      return response.status(200).json({app_url: appUrl});
+    })
+    .fail(function(msg) {
+      return response.status(500).json({error: msg});
+    });
 });
 
 // Responds with a JSON object containing the configured inbound domain, and a
 // flag indicating whether it has been set up in SparkPost.
 app.get('/inbound-domain', function(request, response) {
+  return response.status(500).send('FUDGE');
   getInboundDomains()
-    .fail(function(msg) {
-      return response.status(500).send(msg);
-    })
-    .done(function(domains) {
+    .then(function(domains) {
       return response.status(200).json({
         domain: process.env.INBOUND_DOMAIN,
         in_sparkpost: (domains.indexOf(process.env.INBOUND_DOMAIN) >= 0)
       });
+    })
+    .fail(function(msg) {
+      return response.status(500).send(msg);
     });
 });
 
 app.post('/inbound-domain', function(request, response) {
   try {
     let data = JSON.parse(JSON.stringify(request.body));
-
-////////////////////////////////////////////////////////////////////////////////
-    console.log('id', data); // Why is this empty?
-////////////////////////////////////////////////////////////////////////////////
-
-    // addInboundDomain(data);
-    response.status(200).send('OK');
+    var domain = data.domain;
   } catch (e) {
-    console.error('Invalid data', e);
-    response.status(400).send('Invalid data');
+    return response.status(400).json({err: 'Invalid data'});
   }
+
+  addInboundDomain(domain)
+    .then(function() {
+      return response.status(200).json({domain: domain});
+    })
+    .fail(function(msg) {
+      return response.status(500).send(msg);
+    });
 });
 
 app.post('/message', function(request, response) {
@@ -120,35 +132,16 @@ app.post('/message', function(request, response) {
     }, function(error, res, body) {
       if (!error && res.statusCode === 200) {
         console.log('Transmission succeeded: ' + JSON.stringify(body));
-        response.status(200).send('OK');
+        return response.status(200).send('OK');
       } else {
         console.error('Transmission failed: ' + res.statusCode + ' ' + JSON.stringify(body));
-        response.status(500).send('Transmission failed: ' + JSON.stringify(body));
+        return response.status(500).send('Transmission failed: ' + JSON.stringify(body));
       }
     });
   } catch (e) {
-    console.error('Invalid data', e);
-    response.status(400).send('Invalid data');
+    return response.status(400).send('Invalid data');
   }
 });
-
-function getConfig() {
-  return q.Promise(function(resolve, reject) {
-    client.get('appUrl', function(err, reply) {
-      if (err) {
-        reject(err);
-      } else {
-        if (!reply) {
-          console.log('App URL not configured in Redis');
-        } else {
-          appUrl = reply;
-          console.log('App URL is set to ' + appUrl);
-        }
-        resolve();
-      }
-    });
-  });
-}
 
 function getInboundDomains() {
   return q.Promise(function(resolve, reject) {
@@ -201,36 +194,27 @@ function getInboundWebhooks() {
   });
 }
 
-function addInboundWebhook(webhook_list) {
+function addInboundWebhook(appUrl, domain) {
   return q.Promise(function(resolve, reject) {
-    if (webhook_list.length > 0) {
-      // TODO check for the actual webhook in question
-      console.log('Inbound webhook exists');
-      resolve();
-    } else if (appUrl) {
-      postBaseRequest.post({
-        url: 'relay-webhooks',
-        json: {
-          name: 'Forwarding Service',
-          target: appUrl,
-          auth_token: '1234567890qwertyuio', // TODO do this properly
-          match: {
-            protocol: 'SMTP',
-            domain: process.env.INBOUND_DOMAIN
-          }
+    postBaseRequest.post({
+      url: 'relay-webhooks',
+      json: {
+        name: 'Forwarding Service',
+        target: appUrl,
+        auth_token: '1234567890qwertyuio', // TODO do this properly
+        match: {
+          protocol: 'SMTP',
+          domain: domain
         }
-      }, function(error, response, body) {
-        if (!error && response.statusCode === 200) {
-          console.log('Inbound webhook created');
-          hasWebhook = true;
-          resolve();
-        } else {
-          reject(response.statusCode + ' ' + JSON.stringify(body));
-        }
-      });
-    } else {
-      reject('Relay webhook has not been set up. GET the /setup endpoint.');
-    }
+      }
+    }, function(error, response, body) {
+      if (!error && response.statusCode === 200) {
+        console.log('Inbound webhook created');
+        resolve();
+      } else {
+        reject(response.statusCode + ' ' + JSON.stringify(body));
+      }
+    });
   });
 }
 
