@@ -50,22 +50,16 @@ then click "SparkPost".
 
 5.  Configure the app:
 
-        heroku config:set INBOUND_DOMAIN=<your-inbound-domain-here>
         heroku config:set FORWARD_FROM=<the-from-address-to-use>
         heroku config:set FORWARD_TO=<the-recipient-of--forward-messages>
-
-        The INBOUND_DOMAIN should be a domain that you own and have set up in
-        DNS so that its MX records point to rx1.sparkpostmail.com,
-        rx2.sparkpostmail.com, and rx3.sparkpostmail.com.
 
 6.  Deploy the app:
 
         git push heroku master
 
-7.  Complete the setup by doing an HTTP GET on the `/setup` endpoint, either
-    with a browser or curl:
+7.  Complete the setup by browsing to the following page:
 
-        curl https://<your-app-name>.herokuapp.com/setup
+        curl https://<your-app-name>.herokuapp.com/config.html
 
 
 [deploy]: https://heroku.com/deploy?template=https://github.com/SparkPost/sp-forwarding-service

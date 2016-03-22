@@ -43,15 +43,17 @@ app.get('/inbound-webhook', function(request, response) {
   let appUrl = 'https://' + request.hostname + '/message';
   getInboundWebhooks()
     .then(function(webhooks) {
-      console.log('got w', webhooks, webhooks.length);
-      let webhookExists = false;
+      let domain = null;
       for (var i in webhooks) {
-        console.log(webhooks[i]);
+        if (webhooks[i].target === appUrl) {
+          domain = webhooks[i].match.domain;
+          break;
+        }
       }
-      if (!webhookExists) {
+      if (domain == null) {
         return response.sendStatus(404);
       }
-      return response.status(200).json({app_url: appUrl, webhooks: webhooks});
+      return response.status(200).json({app_url: appUrl, domain: domain });
     })
     .fail(function(msg) {
       return response.status(500).json({error: msg});
@@ -73,22 +75,6 @@ app.post('/inbound-webhook', function(request, response) {
     })
     .fail(function(msg) {
       return response.status(500).json({error: msg});
-    });
-});
-
-// Responds with a JSON object containing the configured inbound domain, and a
-// flag indicating whether it has been set up in SparkPost.
-app.get('/inbound-domain', function(request, response) {
-  return response.status(500).send('FUDGE');
-  getInboundDomains()
-    .then(function(domains) {
-      return response.status(200).json({
-        domain: process.env.INBOUND_DOMAIN,
-        in_sparkpost: (domains.indexOf(process.env.INBOUND_DOMAIN) >= 0)
-      });
-    })
-    .fail(function(msg) {
-      return response.status(500).send(msg);
     });
 });
 
@@ -142,27 +128,6 @@ app.post('/message', function(request, response) {
     return response.status(400).send('Invalid data');
   }
 });
-
-function getInboundDomains() {
-  return q.Promise(function(resolve, reject) {
-    getBaseRequest('inbound-domains', function(error, response, body) {
-      if (!error && response.statusCode === 200) {
-        let domains = Array()
-          , data = JSON.parse(body);
-        for (var key in data.results) {
-          domains.push(data.results[key].domain);
-        }
-        resolve(domains);
-      } else {
-        if (!response) {
-          reject(error);
-        } else {
-          reject(response.statusCode + ' ' + body);
-        }
-      }
-    });
-  });
-}
 
 function addInboundDomain(domain) {
   return q.Promise(function(resolve, reject) {
