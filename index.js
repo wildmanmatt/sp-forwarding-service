@@ -45,7 +45,7 @@ if (process.env.FORWARD_TO === null) {
  */
 
 subscriber.on('error', function (err) {
-  console.error('Client 1: ' + err);
+  console.error('subscriber: ' + err);
 });
 
 publisher.on('error', function (err) {
