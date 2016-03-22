@@ -11,7 +11,7 @@ Start by clicking on the following button:
 
 Once the deployment completes click on the "View" button under "Your app was
 successfully deployed". (Alternatively browse to
-`https://<your-app-name>.herokuapp.com/setup`.)
+`https://<your-app-name>.herokuapp.com/config.html`.)
 
 If a `FORWARD_FROM` address was chosen other than the default
 `forward@sparkpostbox.com` then a sending domain will need to be
