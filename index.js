@@ -11,7 +11,14 @@ let q = require('q')
   })
   , postBaseRequest = getBaseRequest.defaults({
     headers: { 'Content-Type': 'application/json' }
-  });
+  })
+  , redis = require('redis')
+  , subscriber = redis.createClient(process.env.REDIS_URL)
+  , publisher = redis.createClient(process.env.REDIS_URL);
+
+/*
+ * Check the environment/config vars are set up correctly
+ */
 
 if (process.env.SPARKPOST_API_URL === null) {
   console.error('SPARKPOST_API_URL must be set');
@@ -33,11 +40,58 @@ if (process.env.FORWARD_TO === null) {
   process.exit(1);
 }
 
+/*
+ * Set up the Redis publish/subscribe queue for incoming messages
+ */
+
+subscriber.on('error', function (err) {
+  console.error('Client 1: ' + err);
+});
+
+publisher.on('error', function (err) {
+  console.error('publisher: ' + err);
+});
+
+subscriber.subscribe('queue');
+
+subscriber.on('message', function (channel, message) {
+  postBaseRequest.post({
+    url: 'transmissions',
+    json: {
+      recipients: [{
+        address: {
+          email: process.env.FORWARD_TO
+        }
+      }],
+      content: {
+        email_rfc822: message
+      }
+    }
+  }, function(error, res, body) {
+    if (!error && res.statusCode === 200) {
+      console.log('Transmission succeeded: ' + JSON.stringify(body));
+    } else {
+      console.error('Transmission failed: ' + res.statusCode + ' ' + JSON.stringify(body));
+    }
+  });
+});
+
+/*
+ * Set up Express
+ */
+
 app.set('port', (process.env.PORT || 5000));
 
 app.use(express.static(__dirname + '/public'));
 
 app.use(bodyParser.json());
+
+/*
+ * GET /inbound-webhook -- use the request object to find out where this
+ * endpoint is being served from and use that to work out what the inbound
+ * webhook endpoint should be. Get the list of inbound webhooks from SparkPost
+ * and look for this one, returning it with the inbound domain.
+ */
 
 app.get('/inbound-webhook', function(request, response) {
   let appUrl = 'https://' + request.hostname + '/message';
@@ -60,6 +114,13 @@ app.get('/inbound-webhook', function(request, response) {
     });
 });
 
+/*
+ * POST /inbound-webhook -- use the request object to find out where this
+ * endpoint is being served from and use that to work out what the inbound
+ * webhook endpoint should be. Then set that up in SparkPost using the given
+ * domain.
+ */
+
 app.post('/inbound-webhook', function(request, response) {
   try {
     let data = JSON.parse(JSON.stringify(request.body));
@@ -78,6 +139,11 @@ app.post('/inbound-webhook', function(request, response) {
     });
 });
 
+/*
+ * POST /inbound-domain -- set up the given domain as an inbound domain in
+ * SparkPost.
+ */
+
 app.post('/inbound-domain', function(request, response) {
   try {
     let data = JSON.parse(JSON.stringify(request.body));
@@ -95,6 +161,12 @@ app.post('/inbound-domain', function(request, response) {
     });
 });
 
+/*
+ * POST /message -- this is the webhook endpoint. Messages received from
+ * SparkPost are put on a Redis queue for later processing, so that 200 can be
+ * returned immediately.
+ */
+
 app.post('/message', function(request, response) {
   try {
     let data = JSON.parse(JSON.stringify(request.body))
@@ -103,31 +175,17 @@ app.post('/message', function(request, response) {
       , message = data[0].msys.relay_message.content.email_rfc822
         .replace(/^From: .*$/m, 'From: ' + process.env.FORWARD_FROM);
 
-    postBaseRequest.post({
-      url: 'transmissions',
-      json: {
-        recipients: [{
-          address: {
-            email: process.env.FORWARD_TO
-          }
-        }],
-        content: {
-          email_rfc822: message
-        }
-      }
-    }, function(error, res, body) {
-      if (!error && res.statusCode === 200) {
-        console.log('Transmission succeeded: ' + JSON.stringify(body));
-        return response.status(200).send('OK');
-      } else {
-        console.error('Transmission failed: ' + res.statusCode + ' ' + JSON.stringify(body));
-        return response.status(500).send('Transmission failed: ' + JSON.stringify(body));
-      }
-    });
+      publisher.publish('queue', message);
+
+      return response.status(200).send('OK');
   } catch (e) {
     return response.status(400).send('Invalid data');
   }
 });
+
+/*
+ * Helper functions
+ */
 
 function addInboundDomain(domain) {
   return q.Promise(function(resolve, reject) {
