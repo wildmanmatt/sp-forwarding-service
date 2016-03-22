@@ -14,7 +14,10 @@ let q = require('q')
   })
   , redis = require('redis')
   , subscriber = redis.createClient(process.env.REDIS_URL)
-  , publisher = redis.createClient(process.env.REDIS_URL);
+  , publisher = redis.createClient(process.env.REDIS_URL)
+  , subscriberReady = false
+  , publisherReady = false
+  ;
 
 /*
  * Check the environment/config vars are set up correctly
@@ -46,10 +49,20 @@ if (process.env.FORWARD_TO === null) {
 
 subscriber.on('error', function (err) {
   console.error('subscriber: ' + err);
+  subscriberReady = false;
 });
 
 publisher.on('error', function (err) {
   console.error('publisher: ' + err);
+  publisherReady = false;
+});
+
+subscriber.on('ready', function () {
+  subscriberReady = true;
+});
+
+publisher.on('ready', function () {
+  publisherReady = true;
 });
 
 subscriber.subscribe('queue');
@@ -168,6 +181,10 @@ app.post('/inbound-domain', function(request, response) {
  */
 
 app.post('/message', function(request, response) {
+  if (!subscriberReady || !publisherReady ) {
+    return response.status(500).send('Not ready');
+  }
+
   try {
     let data = JSON.parse(JSON.stringify(request.body))
       // The From: address needs to be changed to use a verified domain
