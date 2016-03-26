@@ -47,27 +47,27 @@ if (process.env.FORWARD_TO === null) {
  * Set up the Redis publish/subscribe queue for incoming messages
  */
 
-subscriber.on('error', function (err) {
+subscriber.on('error', function(err) {
   console.error('subscriber: ' + err);
   subscriberReady = false;
 });
 
-publisher.on('error', function (err) {
+publisher.on('error', function(err) {
   console.error('publisher: ' + err);
   publisherReady = false;
 });
 
-subscriber.on('ready', function () {
+subscriber.on('ready', function() {
   subscriberReady = true;
 });
 
-publisher.on('ready', function () {
+publisher.on('ready', function() {
   publisherReady = true;
 });
 
 subscriber.subscribe('queue');
 
-subscriber.on('message', function (channel, message) {
+subscriber.on('message', function(channel, message) {
   postBaseRequest.post({
     url: 'transmissions',
     json: {
@@ -117,7 +117,7 @@ app.get('/inbound-webhook', function(request, response) {
           break;
         }
       }
-      if (domain == null) {
+      if (domain === null) {
         return response.sendStatus(404);
       }
       return response.status(200).json({app_url: appUrl, domain: domain });
@@ -135,9 +135,10 @@ app.get('/inbound-webhook', function(request, response) {
  */
 
 app.post('/inbound-webhook', function(request, response) {
+  let domain;
   try {
     let data = JSON.parse(JSON.stringify(request.body));
-    var domain = data.domain;
+    domain = data.domain;
   } catch (e) {
     return response.status(400).json({err: 'Invalid data'});
   }
@@ -158,9 +159,10 @@ app.post('/inbound-webhook', function(request, response) {
  */
 
 app.post('/inbound-domain', function(request, response) {
+  let domain;
   try {
     let data = JSON.parse(JSON.stringify(request.body));
-    var domain = data.domain;
+    domain = data.domain;
   } catch (e) {
     return response.status(400).json({err: 'Invalid data'});
   }
@@ -181,7 +183,7 @@ app.post('/inbound-domain', function(request, response) {
  */
 
 app.post('/message', function(request, response) {
-  if (!subscriberReady || !publisherReady ) {
+  if (!subscriberReady || !publisherReady) {
     return response.status(500).send('Not ready');
   }
 
@@ -192,9 +194,9 @@ app.post('/message', function(request, response) {
       , message = data[0].msys.relay_message.content.email_rfc822
         .replace(/^From: .*$/m, 'From: ' + process.env.FORWARD_FROM);
 
-      publisher.publish('queue', message);
+    publisher.publish('queue', message);
 
-      return response.status(200).send('OK');
+    return response.status(200).send('OK');
   } catch (e) {
     return response.status(400).send('Invalid data');
   }
