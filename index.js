@@ -4,38 +4,30 @@ let q = require('q')
   , express = require('express')
   , app = express()
   , bodyParser = require('body-parser')
-  , request = require('request')
-  , getBaseRequest = request.defaults({
-    baseUrl: process.env.SPARKPOST_API_URL,
-    headers: { 'Authorization': process.env.SPARKPOST_API_KEY }
-  })
-  , postBaseRequest = getBaseRequest.defaults({
-    headers: { 'Content-Type': 'application/json' }
-  })
+  , SparkPost = require('sparkpost')
+  , sp = new SparkPost(process.env.SPARKPOST_API_KEY)
   , redis = require('redis')
   , subscriber = redis.createClient(process.env.REDIS_URL)
-  , publisher = redis.createClient(process.env.REDIS_URL);
+  , publisher = redis.createClient(process.env.REDIS_URL)
+  , subscriberReady = false
+  , publisherReady = false
+  ;
 
 /*
  * Check the environment/config vars are set up correctly
  */
 
-if (process.env.SPARKPOST_API_URL === null) {
-  console.error('SPARKPOST_API_URL must be set');
-  process.exit(1);
-}
-
-if (process.env.SPARKPOST_API_KEY === null) {
+if (process.env.SPARKPOST_API_KEY === undefined) {
   console.error('SPARKPOST_API_KEY must be set');
   process.exit(1);
 }
 
-if (process.env.FORWARD_FROM === null) {
+if (process.env.FORWARD_FROM === undefined) {
   console.error('FORWARD_FROM must be set');
   process.exit(1);
 }
 
-if (process.env.FORWARD_TO === null) {
+if (process.env.FORWARD_TO === undefined) {
   console.error('FORWARD_TO must be set');
   process.exit(1);
 }
@@ -44,34 +36,39 @@ if (process.env.FORWARD_TO === null) {
  * Set up the Redis publish/subscribe queue for incoming messages
  */
 
-subscriber.on('error', function (err) {
-  console.error('Client 1: ' + err);
+subscriber.on('error', function(err) {
+  console.error('subscriber: ' + err);
+  subscriberReady = false;
 });
 
-publisher.on('error', function (err) {
+publisher.on('error', function(err) {
   console.error('publisher: ' + err);
+  publisherReady = false;
+});
+
+subscriber.on('ready', function() {
+  subscriberReady = true;
+});
+
+publisher.on('ready', function() {
+  publisherReady = true;
 });
 
 subscriber.subscribe('queue');
 
-subscriber.on('message', function (channel, message) {
-  postBaseRequest.post({
-    url: 'transmissions',
-    json: {
-      recipients: [{
-        address: {
-          email: process.env.FORWARD_TO
-        }
-      }],
+subscriber.on('message', function(channel, message) {
+  sp.transmissions.send({
+    transmissionBody: {
       content: {
         email_rfc822: message
-      }
+      },
+      recipients: [{address: {email: process.env.FORWARD_TO}}]
     }
-  }, function(error, res, body) {
-    if (!error && res.statusCode === 200) {
-      console.log('Transmission succeeded: ' + JSON.stringify(body));
+  }, function(err, res) {
+    if (err) {
+      console.error('Transmission failed: ' + JSON.stringify(err));
     } else {
-      console.error('Transmission failed: ' + res.statusCode + ' ' + JSON.stringify(body));
+      console.log('Transmission succeeded: ' + JSON.stringify(res.body));
     }
   });
 });
@@ -85,6 +82,9 @@ app.set('port', (process.env.PORT || 5000));
 app.use(express.static(__dirname + '/public'));
 
 app.use(bodyParser.json());
+
+// Default of 100k might be too small for many attachments
+app.use(bodyParser.json({limit: '10mb'}));
 
 /*
  * GET /inbound-webhook -- use the request object to find out where this
@@ -104,7 +104,7 @@ app.get('/inbound-webhook', function(request, response) {
           break;
         }
       }
-      if (domain == null) {
+      if (domain === null) {
         return response.sendStatus(404);
       }
       return response.status(200).json({app_url: appUrl, domain: domain });
@@ -122,9 +122,10 @@ app.get('/inbound-webhook', function(request, response) {
  */
 
 app.post('/inbound-webhook', function(request, response) {
+  let domain;
   try {
     let data = JSON.parse(JSON.stringify(request.body));
-    var domain = data.domain;
+    domain = data.domain;
   } catch (e) {
     return response.status(400).json({err: 'Invalid data'});
   }
@@ -145,11 +146,16 @@ app.post('/inbound-webhook', function(request, response) {
  */
 
 app.post('/inbound-domain', function(request, response) {
+  let domain;
   try {
     let data = JSON.parse(JSON.stringify(request.body));
-    var domain = data.domain;
+    domain = data.domain;
   } catch (e) {
     return response.status(400).json({err: 'Invalid data'});
+  }
+
+  if (!domain) {
+    return response.status(422).send('Missing domain');
   }
 
   addInboundDomain(domain)
@@ -168,6 +174,10 @@ app.post('/inbound-domain', function(request, response) {
  */
 
 app.post('/message', function(request, response) {
+  if (!subscriberReady || !publisherReady) {
+    return response.status(500).send('Not ready');
+  }
+
   try {
     let data = JSON.parse(JSON.stringify(request.body))
       // The From: address needs to be changed to use a verified domain
@@ -175,9 +185,9 @@ app.post('/message', function(request, response) {
       , message = data[0].msys.relay_message.content.email_rfc822
         .replace(/^From: .*$/m, 'From: ' + process.env.FORWARD_FROM);
 
-      publisher.publish('queue', message);
+    publisher.publish('queue', message);
 
-      return response.status(200).send('OK');
+    return response.status(200).send('OK');
   } catch (e) {
     return response.status(400).send('Invalid data');
   }
@@ -189,17 +199,13 @@ app.post('/message', function(request, response) {
 
 function addInboundDomain(domain) {
   return q.Promise(function(resolve, reject) {
-    postBaseRequest.post({
-      url: 'inbound-domains',
-      json: {
-        domain: domain
-      }
-    }, function(error, response, body) {
-      if (!error && response.statusCode === 200) {
+    sp.inboundDomains.create({domain: domain}, function(err) {
+      if (err) {
+        console.error(domain, err);
+        reject(err);
+      } else {
         console.log('Inbound domain ' + domain + ' created');
         resolve();
-      } else {
-        reject(response.statusCode + ' ' + JSON.stringify(body));
       }
     });
   });
@@ -207,11 +213,11 @@ function addInboundDomain(domain) {
 
 function getInboundWebhooks() {
   return q.Promise(function(resolve, reject) {
-    getBaseRequest('relay-webhooks', function(error, response, body) {
-      if (!error && response.statusCode === 200) {
-        resolve(JSON.parse(body).results);
+    sp.relayWebhooks.all(function(err, data) {
+      if (err) {
+        reject(err);
       } else {
-        reject(response.statusCode + ' ' + body);
+        resolve(JSON.parse(data.body).results);
       }
     });
   });
@@ -219,23 +225,18 @@ function getInboundWebhooks() {
 
 function addInboundWebhook(appUrl, domain) {
   return q.Promise(function(resolve, reject) {
-    postBaseRequest.post({
-      url: 'relay-webhooks',
-      json: {
-        name: 'Forwarding Service',
-        target: appUrl,
-        auth_token: '1234567890qwertyuio', // TODO do this properly
-        match: {
-          protocol: 'SMTP',
-          domain: domain
-        }
-      }
-    }, function(error, response, body) {
-      if (!error && response.statusCode === 200) {
+    sp.relayWebhooks.create({
+      target: appUrl,
+      domain: domain,
+      name: 'Forwarding Service',
+      auth_token: '1234567890qwertyuio', // TODO do this properly
+      protocol: 'SMTP'
+    }, function(err) {
+      if (err) {
+        reject(err);
+      } else {
         console.log('Inbound webhook created');
         resolve();
-      } else {
-        reject(response.statusCode + ' ' + JSON.stringify(body));
       }
     });
   });
