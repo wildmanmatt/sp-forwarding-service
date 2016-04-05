@@ -11,7 +11,7 @@ Start by clicking on the following button:
 
 Once the deployment completes click on the "View" button under "Your app was
 successfully deployed". (Alternatively browse to
-`https://<your-app-name>.herokuapp.com/config.html`.)
+`https://<your-app-name>.herokuapp.com/index.html`.)
 
 If a `FORWARD_FROM` address was chosen other than the default
 `forward@sparkpostbox.com` then a sending domain will need to be
@@ -59,7 +59,7 @@ then click "SparkPost".
 
 7.  Complete the setup by browsing to the following page:
 
-        curl https://<your-app-name>.herokuapp.com/config.html
+        curl https://<your-app-name>.herokuapp.com/index.html
 
 
 [deploy]: https://heroku.com/deploy?template=https://github.com/SparkPost/sp-forwarding-service
