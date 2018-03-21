@@ -19,7 +19,6 @@
     }
   },
   "addons": [
-    "heroku-redis",
-    "sparkpost"
+    "heroku-redis"
   ]
 }
